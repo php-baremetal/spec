@@ -1,0 +1,1 @@
+{ "name": "Demo chip", "target": "demo", "capabilities": { "microsd": ["spi"], "network": ["wifi"] }, "psram": ["quad"] }

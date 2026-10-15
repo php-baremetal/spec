@@ -1,0 +1,2 @@
+{ "name": "Demo board", "chip": "demo", "psram": "quad", "flash": "4MB", "console": "uart",
+  "microsd": { "type": "spi", "cs": 1, "sclk": 2, "mosi": 3, "miso": 4 } }
