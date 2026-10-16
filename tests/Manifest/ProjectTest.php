@@ -74,13 +74,27 @@ final class ProjectTest extends TestCase
         Project::fromComposer('acme/blink', [...self::BAREMETAL, 'sdk' => 'esp32'], '8.4.25');
     }
 
+    public function test_options_default_to_none(): void
+    {
+        self::assertSame([], Project::fromComposer('acme/blink', self::BAREMETAL, '8.4.25')->options);
+    }
+
+    public function test_rejects_an_option_that_is_not_scalar(): void
+    {
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("extra.baremetal: option 'on-error' must be a string, an integer or a boolean");
+        Project::fromComposer('acme/blink', [...self::BAREMETAL, 'options' => ['on-error' => ['stop']]], '8.4.25');
+    }
+
     public function test_round_trip(): void
     {
         $project = Project::fromComposer('acme/blink', [
             ...self::BAREMETAL,
             'env' => '.env',
             'board-overrides' => ['microsd' => ['cs' => 5]],
+            'options' => ['on-error' => 'continue', 'restart-delay' => 0, 'verbose' => true],
         ], '8.4.25');
+        self::assertSame(['on-error' => 'continue', 'restart-delay' => 0, 'verbose' => true], $project->options);
         $again = Project::fromArray(json_decode(json_encode($project->toArray()), true));
         self::assertEquals($project, $again);
     }

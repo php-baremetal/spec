@@ -1,1 +1,14 @@
-{ "description": "Runs the script in a loop." }
+{
+  "description": "Runs the script in a loop.",
+  "options": {
+    "on-error": {
+      "description": "What to do on an uncaught exception.",
+      "values": ["stop", "continue"],
+      "default": "stop"
+    },
+    "restart-delay": {
+      "description": "Seconds to wait before restarting.",
+      "type": "int", "min": 0, "max": 3600, "default": 5
+    }
+  }
+}

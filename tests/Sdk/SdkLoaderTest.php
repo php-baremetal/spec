@@ -34,6 +34,16 @@ final class SdkLoaderTest extends TestCase
         self::assertSame('storage', $sdk->storage('flash')->kind);
     }
 
+    public function test_modules_declare_options(): void
+    {
+        $options = (new SdkLoader())->load(self::FIXTURE)->runtime('loop')->options;
+        self::assertSame(['on-error', 'restart-delay'], array_keys($options));
+        self::assertSame('enum', $options['on-error']->type);
+        self::assertSame('stop', $options['on-error']->default);
+        self::assertSame(5, $options['restart-delay']->default);
+        self::assertSame([], (new SdkLoader())->load(self::FIXTURE)->storage('flash')->options);
+    }
+
     public function test_patches_are_sorted_and_hashed(): void
     {
         $sdk = (new SdkLoader())->load(self::FIXTURE);

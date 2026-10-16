@@ -19,10 +19,38 @@ final class SdkDriverTest extends TestCase
     /** @var list<string> */
     private array $temp = [];
 
+    private static function delete(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($items as $item) {
+            $item->isDir() && !$item->isLink() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+        }
+        rmdir($dir);
+    }
+
+    private static function copy(string $from, string $to): void
+    {
+        mkdir($to, 0777, true);
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($from, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST,
+        );
+        foreach ($items as $item) {
+            $target = $to . '/' . $items->getSubPathname();
+            $item->isDir() ? mkdir($target, 0777, true) : copy($item->getPathname(), $target);
+        }
+    }
+
     protected function tearDown(): void
     {
         foreach ($this->temp as $dir) {
-            exec('rm -rf ' . escapeshellarg($dir));
+            self::delete($dir);
         }
     }
 
@@ -35,7 +63,7 @@ final class SdkDriverTest extends TestCase
     {
         $dir = sys_get_temp_dir() . '/phpbm-sdk-' . bin2hex(random_bytes(4));
         $this->temp[] = $dir;
-        exec('cp -r ' . escapeshellarg(self::FIXTURE) . ' ' . escapeshellarg($dir));
+        self::copy(self::FIXTURE, $dir);
         $json = json_decode((string) file_get_contents($dir . '/sdk.json'), true);
         $edit($json);
         file_put_contents($dir . '/sdk.json', json_encode($json));

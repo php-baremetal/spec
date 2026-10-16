@@ -30,6 +30,8 @@ final readonly class BuildPlan
         public array $env,
         public string $buildDir,
         public bool $clean = false,
+        /** @var array<string,string|int|bool> resolved values, defaults included */
+        public array $options = [],
     ) {
     }
 

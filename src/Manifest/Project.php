@@ -20,6 +20,8 @@ final readonly class Project
         public string $entry = 'index.php',
         public ?string $env = null,
         public array $boardOverrides = [],
+        /** @var array<string,string|int|bool> */
+        public array $options = [],
     ) {
     }
 
@@ -37,6 +39,13 @@ final readonly class Project
             throw new SpecException("{$where}: " . $e->getMessage(), 0, $e);
         }
 
+        $options = Read::map($data, 'options', $where);
+        foreach ($options as $name => $value) {
+            if (!is_string($value) && !is_int($value) && !is_bool($value)) {
+                throw new SpecException("{$where}: option '{$name}' must be a string, an integer or a boolean");
+            }
+        }
+
         return new self(
             Read::string($data, 'name', $where),
             $sdk,
@@ -48,6 +57,7 @@ final readonly class Project
             Read::optionalString($data, 'entry', $where) ?? 'index.php',
             Read::optionalString($data, 'env', $where),
             Read::map($data, 'board-overrides', $where),
+            $options,
         );
     }
 
@@ -78,6 +88,7 @@ final readonly class Project
             'entry' => $this->entry,
             'env' => $this->env,
             'board-overrides' => (object) $this->boardOverrides,
+            'options' => (object) $this->options,
         ];
     }
 
