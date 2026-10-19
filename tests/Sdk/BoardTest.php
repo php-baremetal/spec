@@ -39,6 +39,17 @@ final class BoardTest extends TestCase
         self::assertSame(7, $board->peripherals['microsd']['sclk']);
     }
 
+    public function test_flash_mode_and_revision_are_board_fields(): void
+    {
+        self::assertNull($this->board()->flashMode);
+        self::assertNull($this->board()->revision);
+        $board = Board::fromArray('p4', ['name' => 'P4', 'chip' => 'esp32p4', 'flash' => '32MB', 'flash-mode' => 'quad', 'revision' => 'v3'], 'boards/p4.json');
+        self::assertSame('quad', $board->flashMode);
+        self::assertSame('v3', $board->revision);
+        self::assertSame([], $board->capabilities());
+        self::assertSame('v3', $board->withOverrides([])->revision);
+    }
+
     public function test_override_of_missing_peripheral_fails(): void
     {
         $this->expectException(SpecException::class);
@@ -102,9 +113,25 @@ final class BoardTest extends TestCase
             'php' => ['8.4' => ['version' => '8.4.25', 'url' => 'https://x/php.tar.xz', 'sha256' => str_repeat('a', 64)]],
         ]);
         self::assertSame('8.4.25', $sdk->release('8.4')->version);
+        self::assertNull($sdk->release('8.4')->startupKb);
         $this->expectException(SpecException::class);
         $this->expectExceptionMessage('sdk esp32 1.0.0 does not support PHP 8.2 (supported: 8.4)');
         $sdk->release('8.2');
+    }
+
+    public function test_php_release_startup_kb(): void
+    {
+        $release = static fn (mixed $kb): SdkDescriptor => SdkDescriptor::fromArray([
+            'name' => 'esp32',
+            'version' => '1.0.0',
+            'contract' => 1,
+            'driver' => ['class' => 'V\\D', 'autoload' => ['psr-4' => ['V\\' => 'driver/']]],
+            'php' => ['8.4' => ['version' => '8.4.1', 'url' => 'u', 'sha256' => str_repeat('a', 64), 'startup-kb' => $kb]],
+        ]);
+        self::assertSame(816, $release(816)->release('8.4')->startupKb);
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("sdk.json php.8.4: 'startup-kb' must be >= 0");
+        $release(-1);
     }
 
     public function test_php_release_version_must_match_minor(): void

@@ -6,6 +6,10 @@
         "class": "PhpBaremetal\\Spec\\Tests\\Fixtures\\NullDriver",
         "autoload": { "psr-4": { "PhpBaremetal\\Spec\\Tests\\Fixtures\\": "../../Fixtures/" } }
     },
+    "options": {
+        "network": { "description": "Wired network.", "values": ["off", "on"], "default": "off" },
+        "tag": { "description": "A tag.", "type": "string", "pattern": "#^[a-z]*$#D", "default": "" }
+    },
     "php": {
         "8.4": { "version": "8.4.25", "url": "https://www.php.net/distributions/php-8.4.25.tar.xz", "sha256": "5cde1da976b728fa09e6b549a4c8afcd0c180337028dacf34f73b11be50253db" }
     },

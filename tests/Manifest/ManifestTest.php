@@ -22,8 +22,8 @@ final class ManifestTest extends TestCase
         ], '8.4.25');
 
         return new Manifest($project, [
-            new Package('php-baremetal/ext-gpio', 'bm-ext', '1.0.0', '.phpbm/packages/php-baremetal/ext-gpio', ['kind' => 'ext', 'ext' => 'gpio']),
-            new Package('php-baremetal/esp32-gpio-hal', 'bm-hal', '1.0.0', '.phpbm/packages/php-baremetal/esp32-gpio-hal', ['hal' => 'gpio']),
+            new Package('php-baremetal/ext-gpio', 'bm-ext', '1.0.0', '.phpbm/packages/php-baremetal/ext-gpio', ['module' => 'gpio']),
+            new Package('php-baremetal/esp32-gpio-hal', 'bm-hal', '1.0.0', '.phpbm/packages/php-baremetal/esp32-gpio-hal', ['hal' => 'gpio', 'platform' => 'esp32']),
         ]);
     }
 
@@ -34,7 +34,7 @@ final class ManifestTest extends TestCase
         self::assertEquals($manifest, $again);
     }
 
-    public function test_kind_falls_back_to_type(): void
+    public function test_kind_derives_from_type(): void
     {
         self::assertSame('hal', self::sample()->packages[1]->kind());
         self::assertCount(1, self::sample()->ofKind('ext'));

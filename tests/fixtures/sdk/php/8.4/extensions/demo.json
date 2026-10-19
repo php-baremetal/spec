@@ -1,0 +1,24 @@
+{
+    "module": "demo",
+    "sources": ["ext/demo/*.c", "sqlite:sqlite3.c"],
+    "exclude": ["ext/demo/big.c"],
+    "include-dirs": ["ext/demo", "sqlite:."],
+    "defines": { "HAVE_DEMO": 1 },
+    "requires": { "extensions": ["base"], "sources": ["sqlite"] },
+    "options": {
+        "demo-big": {
+            "description": "Big tables.",
+            "type": "bool",
+            "default": false,
+            "when": { "true": { "defines": { "DEMO_BIG": 1 }, "sources": ["ext/demo/big.c"], "startup-kb": 4 } }
+        },
+        "demo-mode": {
+            "description": "Mode.",
+            "values": ["fast", "small"],
+            "default": "fast",
+            "when": { "small": { "defines": { "DEMO_SMALL": "yes" }, "exclude": ["ext/demo/fast.c"] } }
+        }
+    },
+    "cost": "about 10 KB",
+    "startup-kb": 12
+}

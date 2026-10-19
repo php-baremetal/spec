@@ -14,6 +14,7 @@ final readonly class PhpRelease
         public string $version,
         public string $url,
         public string $sha256,
+        public ?int $startupKb = null,
     ) {
     }
 
@@ -23,6 +24,14 @@ final readonly class PhpRelease
         if (!str_starts_with($version, $minor . '.')) {
             throw new SpecException("{$where}: 'version' {$version} is not a {$minor} release");
         }
-        return new self($minor, $version, Read::string($data, 'url', $where), Read::sha256($data, 'sha256', $where));
+        // KB of persistent memory the engine itself allocates at startup (no optional extension, no package), for drivers that budget it.
+        $startupKb = null;
+        if (array_key_exists('startup-kb', $data)) {
+            $startupKb = Read::int($data, 'startup-kb', $where);
+            if ($startupKb < 0) {
+                throw new SpecException("{$where}: 'startup-kb' must be >= 0");
+            }
+        }
+        return new self($minor, $version, Read::string($data, 'url', $where), Read::sha256($data, 'sha256', $where), $startupKb);
     }
 }

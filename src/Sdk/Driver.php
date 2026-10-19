@@ -16,6 +16,9 @@ interface Driver
 
     public function flash(Artifacts $artifacts, BuildPlan $plan, Port $port, Output $out): void;
 
+    /** Copies the project sources to a storage the firmware does not carry (after flash); false, doing nothing, for the others. */
+    public function sync(BuildPlan $plan, Port $port, Output $out): bool;
+
     public function monitor(Port $port): int;
 
     /** Null when the chip on the port does not belong to this platform. */

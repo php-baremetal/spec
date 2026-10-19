@@ -41,6 +41,9 @@ final readonly class Project
 
         $options = Read::map($data, 'options', $where);
         foreach ($options as $name => $value) {
+            if (is_int($name)) {
+                throw new SpecException("{$where}: 'options' keys must be option names, got {$name}");
+            }
             if (!is_string($value) && !is_int($value) && !is_bool($value)) {
                 throw new SpecException("{$where}: option '{$name}' must be a string, an integer or a boolean");
             }

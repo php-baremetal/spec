@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpBaremetal\Spec\Tests\Sdk;
 
+use PhpBaremetal\Spec\Sdk\Descriptor\PhpExtension;
 use PhpBaremetal\Spec\Sdk\SdkLoader;
 use PhpBaremetal\Spec\SpecException;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +33,14 @@ final class SdkLoaderTest extends TestCase
         self::assertSame('demo', $sdk->chip('demo')->target);
         self::assertSame('runtime', $sdk->runtime('loop')->kind);
         self::assertSame('storage', $sdk->storage('flash')->kind);
+    }
+
+    public function test_sdk_declares_options(): void
+    {
+        $options = (new SdkLoader())->load(self::FIXTURE)->descriptor->options;
+        self::assertSame(['network', 'tag'], array_keys($options));
+        self::assertSame('off', $options['network']->default);
+        self::assertSame('string', $options['tag']->type);
     }
 
     public function test_modules_declare_options(): void
@@ -87,5 +96,95 @@ final class SdkLoaderTest extends TestCase
         $this->expectException(SpecException::class);
         $this->expectExceptionMessage("sdk.json: PHP 8.5 is declared but php/8.5/ does not exist");
         (new SdkLoader())->load($dir);
+    }
+
+    public function test_loads_the_php_extensions_of_each_minor(): void
+    {
+        $sdk = (new SdkLoader())->load(self::FIXTURE);
+        self::assertSame(['base', 'demo'], array_keys($sdk->phpExtensions['8.4']));
+        self::assertSame('demo', $sdk->phpExtension('8.4', 'demo')?->module);
+        self::assertSame('demo_module_entry', $sdk->phpExtension('8.4', 'demo')?->entry);
+        self::assertNull($sdk->phpExtension('8.4', 'nope'));
+        self::assertNull($sdk->phpExtension('8.3', 'demo'));
+    }
+
+    public function test_source_patches_are_sorted_and_hashed(): void
+    {
+        $sdk = (new SdkLoader())->load(self::FIXTURE);
+        self::assertSame(['0001-y.patch'], array_map('basename', $sdk->sourcePatches('sqlite')));
+        self::assertSame([], $sdk->sourcePatches('none'));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $sdk->sourcePatchesHash('sqlite'));
+        self::assertNotSame($sdk->sourcePatchesHash('sqlite'), $sdk->sourcePatchesHash('none'));
+    }
+
+    public function test_extension_with_an_undeclared_source_is_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/onig.json', '{"module":"o","sources":["onig:a.c"],"requires":{"sources":["onig"]}}');
+        $this->expectExceptionMessage("php/8.4/extensions/onig.json: requires the source 'onig', which sdk.json does not declare");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_extension_requiring_a_missing_extension_is_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/pdo_x.json', '{"module":"m","sources":["a.c"],"requires":{"extensions":["pdo"]}}');
+        $this->expectExceptionMessage("php/8.4/extensions/pdo_x.json: requires the extension 'pdo', which PHP 8.4 does not provide");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_extensions_requiring_each_other_are_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/base.json', '{"module":"m","sources":["a.c"],"requires":{"extensions":["demo"]}}');
+        $this->expectExceptionMessage('the extensions require each other (base -> demo -> base)');
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_two_extensions_with_the_same_module_are_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/other.json', '{"module":"demo","entry":"other_module_entry","sources":["a.c"]}');
+        $this->expectExceptionMessage("php/8.4/extensions/other.json: module 'demo' is already registered by the extension demo");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_two_extensions_with_the_same_entry_are_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/other.json', '{"module":"other","entry":"demo_module_entry","sources":["a.c"]}');
+        $this->expectExceptionMessage("php/8.4/extensions/other.json: entry 'demo_module_entry' is already defined by the extension demo");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_an_extension_with_a_builtin_entry_is_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/js.json', '{"module":"js","entry":"json_module_entry","sources":["a.c"]}');
+        $this->expectExceptionMessage("php/8.4/extensions/js.json: entry 'json_module_entry' is already defined by the built-in extension json");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_an_extension_with_a_builtin_module_is_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/js.json', '{"module":"json","sources":["a.c"]}');
+        $this->expectExceptionMessage("php/8.4/extensions/js.json: module 'json' is already registered by the built-in extension json");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_an_extension_with_the_real_symbol_of_a_builtin_is_rejected(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/php/8.4/extensions/js.json', '{"module":"js","entry":"basic_functions_module","sources":["a.c"]}');
+        $this->expectExceptionMessage("php/8.4/extensions/js.json: entry 'basic_functions_module' is already defined by the built-in extension standard");
+        (new SdkLoader())->load($dir);
+    }
+
+    public function test_builtin_entries_are_the_real_symbols(): void
+    {
+        self::assertSame('zend_builtin_module', PhpExtension::builtinEntries('8.4')['core']);
+        self::assertArrayNotHasKey('uri', PhpExtension::builtinEntries('8.4'));
+        self::assertSame('uri_module_entry', PhpExtension::builtinEntries('8.5')['uri']);
     }
 }

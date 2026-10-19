@@ -46,14 +46,67 @@ final class OptionTest extends TestCase
         $option = Option::fromArray('verbose', ['description' => 'd', 'type' => 'bool', 'default' => true], 'runtime x');
         self::assertSame('bool', $option->type);
         self::assertTrue($option->default);
+        $this->expectException(SpecException::class);
         $this->expectExceptionMessage('must be true or false');
         $option->accept('yes', 'w');
+    }
+
+    public function test_string_with_a_pattern(): void
+    {
+        $option = Option::fromArray('init', ['description' => 'd', 'type' => 'string', 'pattern' => '#^[a-z]*$#D', 'default' => ''], 'runtime x');
+        self::assertSame('string', $option->type);
+        self::assertSame('', $option->default);
+        self::assertSame('#^[a-z]*$#D', $option->pattern);
+        self::assertSame('abc', $option->accept('abc', 'w'));
+        self::assertSame('x', Option::fromArray('s', ['description' => 'd', 'type' => 'string', 'default' => 'x'], 'w')->default);
+    }
+
+    public function test_string_default_must_match_the_pattern(): void
+    {
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage('must match #^[a-z]+$#D');
+        Option::fromArray('init', ['description' => 'd', 'type' => 'string', 'pattern' => '#^[a-z]+$#D', 'default' => '1'], 'runtime x');
+    }
+
+    public function test_string_pattern_must_be_a_regex(): void
+    {
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("'pattern' is not a valid regular expression");
+        Option::fromArray('init', ['description' => 'd', 'type' => 'string', 'pattern' => '(', 'default' => ''], 'runtime x');
+    }
+
+    public function test_pattern_only_on_string_options(): void
+    {
+        foreach ([['type' => 'int', 'default' => 1], ['type' => 'bool', 'default' => true], ['values' => ['a', 'b'], 'default' => 'a']] as $data) {
+            try {
+                Option::fromArray('x', ['description' => 'd', 'pattern' => '#^a$#D', ...$data], 'runtime x');
+                self::fail('expected a SpecException');
+            } catch (SpecException $e) {
+                self::assertSame("runtime x: 'pattern' is only allowed on string options", $e->getMessage());
+            }
+        }
+    }
+
+    public function test_string_accept_rejects_other_types_and_mismatches(): void
+    {
+        $option = new Option('s', 'd', 'string', '', [], null, null, '#^[a-z]*$#D');
+        foreach ([5, 'ABC'] as $bad) {
+            try {
+                $option->accept($bad, 'w');
+                self::fail('expected a SpecException');
+            } catch (SpecException $e) {
+                self::assertStringContainsString('must be a string that must match #^[a-z]*$#D', $e->getMessage());
+            }
+        }
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage('must be a string, got 5');
+        (new Option('s', 'd', 'string', ''))->accept(5, 'w');
     }
 
     public function test_unknown_type(): void
     {
         $this->expectException(SpecException::class);
-        $this->expectExceptionMessage("'type' must be int or bool");
+        $this->expectExceptionMessage("'type' must be int, bool or string");
         Option::fromArray('x', ['description' => 'd', 'type' => 'float', 'default' => 1], 'runtime x');
     }
 

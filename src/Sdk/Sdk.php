@@ -7,6 +7,7 @@ namespace PhpBaremetal\Spec\Sdk;
 use PhpBaremetal\Spec\Sdk\Descriptor\Board;
 use PhpBaremetal\Spec\Sdk\Descriptor\Chip;
 use PhpBaremetal\Spec\Sdk\Descriptor\Module;
+use PhpBaremetal\Spec\Sdk\Descriptor\PhpExtension;
 use PhpBaremetal\Spec\Sdk\Descriptor\SdkDescriptor;
 use PhpBaremetal\Spec\SpecException;
 
@@ -17,6 +18,7 @@ final readonly class Sdk
      * @param array<string,Board>  $boards
      * @param array<string,Module> $runtimes
      * @param array<string,Module> $storages
+     * @param array<string,array<string,PhpExtension>> $phpExtensions minor => name => extension
      */
     public function __construct(
         public string $dir,
@@ -25,6 +27,7 @@ final readonly class Sdk
         public array $boards,
         public array $runtimes,
         public array $storages,
+        public array $phpExtensions = [],
     ) {
     }
 
@@ -46,6 +49,11 @@ final readonly class Sdk
     public function storage(string $id): Module
     {
         return $this->pick($this->storages, $id, 'storage');
+    }
+
+    public function phpExtension(string $minor, string $name): ?PhpExtension
+    {
+        return $this->phpExtensions[$minor][$name] ?? null;
     }
 
     public function driver(Context $context): Driver
@@ -104,9 +112,28 @@ final readonly class Sdk
 
     public function patchesHash(string $minor): string
     {
+        return self::hashFiles($this->patches($minor));
+    }
+
+    /** @return list<string> patches applied to the external source <name> (sources/<name>/patches) */
+    public function sourcePatches(string $name): array
+    {
+        $files = glob("{$this->dir}/sources/{$name}/patches/*.patch") ?: [];
+        sort($files);
+        return $files;
+    }
+
+    public function sourcePatchesHash(string $name): string
+    {
+        return self::hashFiles($this->sourcePatches($name));
+    }
+
+    /** @param list<string> $files */
+    private static function hashFiles(array $files): string
+    {
         $context = hash_init('sha256');
-        foreach ($this->patches($minor) as $patch) {
-            hash_update($context, basename($patch) . "\0" . hash_file('sha256', $patch) . "\n");
+        foreach ($files as $file) {
+            hash_update($context, basename($file) . "\0" . hash_file('sha256', $file) . "\n");
         }
         return hash_final($context);
     }

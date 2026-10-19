@@ -9,7 +9,7 @@ use PhpBaremetal\Spec\Support\Read;
 
 final readonly class Board
 {
-    private const FIELDS = ['name', 'chip', 'psram', 'flash', 'console'];
+    private const FIELDS = ['name', 'chip', 'psram', 'flash', 'flash-mode', 'revision', 'console'];
 
     /** @param array<string,array<string,mixed>> $peripherals every block carries a 'type' */
     public function __construct(
@@ -20,6 +20,10 @@ final readonly class Board
         public string $flash,
         public ?string $console,
         public array $peripherals,
+        /** Flash bus width (e.g. quad, octal); null is the SDK's default. */
+        public ?string $flashMode = null,
+        /** Chip silicon revision family the firmware targets (e.g. v1, v3); null is the SDK's default. */
+        public ?string $revision = null,
     ) {
     }
 
@@ -43,6 +47,8 @@ final readonly class Board
             Read::string($data, 'flash', $where),
             Read::optionalString($data, 'console', $where),
             $peripherals,
+            Read::optionalString($data, 'flash-mode', $where),
+            Read::optionalString($data, 'revision', $where),
         );
     }
 
@@ -62,7 +68,7 @@ final readonly class Board
             $peripherals[$key] = array_replace($peripherals[$key], $block);
         }
 
-        return new self($this->id, $this->name, $this->chip, $this->psram, $this->flash, $this->console, $peripherals);
+        return new self($this->id, $this->name, $this->chip, $this->psram, $this->flash, $this->console, $peripherals, $this->flashMode, $this->revision);
     }
 
     public function has(string $capability): bool

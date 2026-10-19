@@ -98,4 +98,11 @@ final class ProjectTest extends TestCase
         $again = Project::fromArray(json_decode(json_encode($project->toArray()), true));
         self::assertEquals($project, $again);
     }
+
+    public function test_options_with_an_integer_key_are_rejected(): void
+    {
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("extra.baremetal: 'options' keys must be option names, got 0");
+        Project::fromComposer('acme/blink', [...self::BAREMETAL, 'options' => ['0' => 'x', 'on-error' => 'stop']], '8.4.25');
+    }
 }

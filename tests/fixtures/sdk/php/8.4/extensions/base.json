@@ -1,0 +1,4 @@
+{
+    "module": "base",
+    "sources": ["ext/base/*.c"]
+}

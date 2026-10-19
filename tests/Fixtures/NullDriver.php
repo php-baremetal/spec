@@ -48,6 +48,11 @@ final class NullDriver implements Driver
     {
     }
 
+    public function sync(BuildPlan $plan, Port $port, Output $out): bool
+    {
+        return false;
+    }
+
     public function monitor(Port $port): int
     {
         return $this->context->process->tty(['cat', $port->path]);

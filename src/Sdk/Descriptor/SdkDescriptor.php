@@ -13,6 +13,7 @@ final readonly class SdkDescriptor
      * @param array<string,string>        $autoload namespace prefix => directory relative to the SDK
      * @param array<string,PhpRelease>    $php      minor => release
      * @param array<string,SourceArchive> $sources
+     * @param array<string,Option>        $options
      */
     public function __construct(
         public string $name,
@@ -22,6 +23,7 @@ final readonly class SdkDescriptor
         public array $autoload,
         public array $php,
         public array $sources,
+        public array $options = [],
     ) {
     }
 
@@ -51,6 +53,12 @@ final readonly class SdkDescriptor
             $sources[(string) $name] = SourceArchive::fromArray((string) $name, is_array($source) ? $source : [], "{$where} sources.{$name}");
         }
 
+        $options = [];
+        $declared = array_key_exists('options', $data) ? Read::map($data, 'options', $where) : [];
+        foreach ($declared as $name => $option) {
+            $options[(string) $name] = Option::fromArray((string) $name, is_array($option) ? $option : [], "{$where} option {$name}");
+        }
+
         return new self(
             Read::string($data, 'name', $where),
             Read::string($data, 'version', $where),
@@ -59,6 +67,7 @@ final readonly class SdkDescriptor
             $autoload,
             $php,
             $sources,
+            $options,
         );
     }
 

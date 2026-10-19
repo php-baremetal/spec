@@ -47,7 +47,6 @@ final readonly class Package
 
     public function kind(): string
     {
-        $kind = $this->meta['kind'] ?? null;
-        return is_string($kind) && $kind !== '' ? $kind : substr($this->type, 3);
+        return substr($this->type, 3);
     }
 }
