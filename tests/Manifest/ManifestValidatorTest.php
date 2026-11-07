@@ -78,6 +78,23 @@ final class ManifestValidatorTest extends TestCase
         }
     }
 
+    public function test_ide_stubs_are_a_list_of_relative_stub_paths(): void
+    {
+        self::assertSame([], (new ManifestValidator())->validate($this->with(
+            new Package('php-baremetal/ext-x', 'bm-lib', '1.0.0', 'p', ['ide-stubs' => ['ide/x.stub', 'ide/sub/y.stub']]),
+        )));
+    }
+
+    public function test_ide_stubs_must_be_a_list_of_relative_stub_paths(): void
+    {
+        $message = 'php-baremetal/ext-x: extra.baremetal.ide-stubs must be a list of relative paths ending in .stub';
+        foreach (['ide/x.stub', ['/abs/x.stub'], ['C:/x.stub'], ['ide\\..\\x.stub'], ['../x.stub'], ['ide/../x.stub'], ['ide/x.php'], [1], [''], ['ide/x.stub', 2]] as $stubs) {
+            self::assertSame([$message], (new ManifestValidator())->validate($this->with(
+                new Package('php-baremetal/ext-x', 'bm-lib', '1.0.0', 'p', ['ide-stubs' => $stubs]),
+            )));
+        }
+    }
+
     public function test_hal_platform_must_match_the_project_sdk(): void
     {
         $validator = new ManifestValidator();

@@ -2,6 +2,8 @@
 
 ## 1.1.0
 
+- Added: packages may declare extra.baremetal.ide-stubs (relative paths of .stub files with the package's PHP declarations for IDEs); the manifest validator checks the format.
+- Added: `ManifestValidator::isRelativeStubPath()` is public, so conductor applies the same rule when it copies the files.
 - Added: `extra.baremetal.fonts` in the project (`Manifest\Fonts`, `Manifest\FontBake`): the default font switch, the project font folder and the fonts to bake.
 - Added: `BuildPlan::$fonts`, the resolved fonts (name => path of the GFX header) handed to the SDK driver. Optional: a driver of contract 1 that ignores it keeps working.
 - Changed: a board block is checked against the chip's `capabilities` only when the chip lists that block; any other block (such as a display or an LED read by a package's driver) takes any type.

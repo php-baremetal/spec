@@ -23,7 +23,9 @@ composer require php-baremetal/spec
   `kind()` returns the type without `bm-`.
 - `Manifest::fromFile()`, `fromArray()`, `toJson()`, `ofKind('ext')`, `has($name)`.
 - `ManifestValidator::validate()` returns a list of problems: extensions without a `module` or sharing one, a
-  `bm-hal` for another platform than the SDK's, a `bm-php-ext` that carries more than `php-ext`.
+  `bm-hal` for another platform than the SDK's, a `bm-php-ext` that carries more than `php-ext`,
+  a malformed `extra.baremetal.board-blocks`, and a malformed `extra.baremetal.ide-stubs` (a list of relative paths
+  ending in `.stub`, without `..` segments).
 
 ## SDK
 

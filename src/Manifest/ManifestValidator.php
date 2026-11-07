@@ -57,6 +57,25 @@ final class ManifestValidator
         }
 
         foreach ($manifest->packages as $package) {
+            if (!array_key_exists('ide-stubs', $package->meta)) {
+                continue;
+            }
+            $stubs = $package->meta['ide-stubs'];
+            $valid = is_array($stubs) && array_is_list($stubs);
+            if ($valid) {
+                foreach ($stubs as $stub) {
+                    if (!is_string($stub) || !self::isRelativeStubPath($stub)) {
+                        $valid = false;
+                        break;
+                    }
+                }
+            }
+            if (!$valid) {
+                $problems[] = "{$package->name}: extra.baremetal.ide-stubs must be a list of relative paths ending in .stub";
+            }
+        }
+
+        foreach ($manifest->packages as $package) {
             if (!array_key_exists('options', $package->meta)) {
                 continue;
             }
@@ -90,5 +109,22 @@ final class ManifestValidator
         }
 
         return $problems;
+    }
+
+    /** True for a relative path (no leading slash, drive letter or ".." segment) ending in .stub. */
+    public static function isRelativeStubPath(string $path): bool
+    {
+        if ($path === '' || $path[0] === '/' || $path[0] === '\\' || preg_match('/^[A-Za-z]:/', $path)) {
+            return false;
+        }
+        if (!str_ends_with($path, '.stub')) {
+            return false;
+        }
+        foreach (preg_split('#[/\\\\]#', $path) as $segment) {
+            if ($segment === '..') {
+                return false;
+            }
+        }
+        return true;
     }
 }
