@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpBaremetal\Spec\Manifest;
 
+use PhpBaremetal\Spec\Sdk\Descriptor\Option;
 use PhpBaremetal\Spec\SpecException;
 use PhpBaremetal\Spec\Support\Read;
 
@@ -48,5 +49,49 @@ final readonly class Package
     public function kind(): string
     {
         return substr($this->type, 3);
+    }
+
+    /**
+     * The options declared in extra.baremetal.options, in the SDK's option format.
+     *
+     * @return array<string, Option>
+     * @throws SpecException when an option definition is invalid
+     */
+    public function options(): array
+    {
+        $declared = $this->meta['options'] ?? [];
+        $where = "{$this->name}: extra.baremetal.options";
+        if (!is_array($declared) || ($declared !== [] && array_is_list($declared))) {
+            throw new SpecException("{$this->name}: extra.baremetal.options must be an object");
+        }
+        $options = [];
+        foreach ($declared as $name => $definition) {
+            $name = (string) $name;
+            $at = "{$where}.{$name}";
+            if (!is_array($definition)) {
+                throw new SpecException("{$at}: must be an object");
+            }
+            $options[$name] = Option::fromArray($name, $definition, $at);
+        }
+
+        return $options;
+    }
+
+    /** The prefix every option of this package must start with (without the trailing '-'), or null if none applies. */
+    public function optionPrefix(): ?string
+    {
+        if ($this->kind() === 'ext') {
+            $module = $this->meta['module'] ?? null;
+
+            return is_string($module) && $module !== '' ? $module : null;
+        }
+        if ($this->kind() === 'hal' || $this->kind() === 'lib') {
+            $name = substr($this->name, (int) strrpos('/' . $this->name, '/'));
+            $name = str_starts_with($name, 'esp32-') ? substr($name, 6) : $name;
+
+            return $name !== '' ? $name : null;
+        }
+
+        return null;
     }
 }

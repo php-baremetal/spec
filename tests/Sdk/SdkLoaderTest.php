@@ -87,6 +87,14 @@ final class SdkLoaderTest extends TestCase
         (new SdkLoader())->load($dir);
     }
 
+    public function test_board_block_the_chip_does_not_list_takes_any_type(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/boards/led.json', '{"name":"Led","chip":"demo","flash":"4MB","led":{"type":"apa102","data":5},"led-2":{"type":"ws2812","pin":6}}');
+        $sdk = (new SdkLoader())->load($dir);
+        self::assertSame(['led' => 'apa102', 'led-2' => 'ws2812'], $sdk->board('led')->capabilities());
+    }
+
     public function test_missing_php_directory_is_rejected(): void
     {
         $dir = $this->copyFixture();

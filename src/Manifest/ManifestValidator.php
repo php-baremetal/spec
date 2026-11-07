@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpBaremetal\Spec\Manifest;
 
 use PhpBaremetal\Spec\Sdk\Descriptor\PhpExtension;
+use PhpBaremetal\Spec\SpecException;
 
 final class ManifestValidator
 {
@@ -35,6 +36,41 @@ final class ManifestValidator
             } elseif ($platform !== $sdk) {
                 $shown = is_string($platform) ? $platform : get_debug_type($platform);
                 $problems[] = "{$package->name}: 'platform' is '{$shown}' but the project's sdk is '{$sdk}'";
+            }
+        }
+
+        foreach ($manifest->packages as $package) {
+            if (!array_key_exists('board-blocks', $package->meta)) {
+                continue;
+            }
+            $blocks = $package->meta['board-blocks'];
+            if (!is_array($blocks) || !array_is_list($blocks)) {
+                $problems[] = "{$package->name}: extra.baremetal.board-blocks must be a list of '<kind>:<type>' strings";
+                continue;
+            }
+            foreach ($blocks as $block) {
+                if (!is_string($block) || !preg_match('/^[a-z0-9]+:[a-z0-9][a-z0-9-]*$/D', $block)) {
+                    $problems[] = "{$package->name}: extra.baremetal.board-blocks must be a list of '<kind>:<type>' strings";
+                    break;
+                }
+            }
+        }
+
+        foreach ($manifest->packages as $package) {
+            if (!array_key_exists('options', $package->meta)) {
+                continue;
+            }
+            try {
+                $options = $package->options();
+            } catch (SpecException $e) {
+                $problems[] = $e->getMessage();
+                continue;
+            }
+            $prefix = $package->optionPrefix();
+            foreach (array_keys($options) as $name) {
+                if ($prefix !== null && !str_starts_with($name, "{$prefix}-")) {
+                    $problems[] = "{$package->name}: option '{$name}' must start with '{$prefix}-'";
+                }
             }
         }
 

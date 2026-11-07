@@ -122,7 +122,8 @@ final class SdkLoader
             throw new SpecException("{$where}: chip '{$chip->id}' does not support psram '{$board->psram}'");
         }
         foreach ($board->capabilities() as $capability => $type) {
-            if (!$chip->supports($capability, $type)) {
+            // Only the blocks the chip lists are implemented by the SDK; any other block belongs to a package.
+            if (isset($chip->capabilities[$capability]) && !$chip->supports($capability, $type)) {
                 throw new SpecException("{$where}: chip '{$chip->id}' does not support {$capability} '{$type}'");
             }
         }

@@ -35,6 +35,8 @@ final readonly class BuildPlan
         public array $options = [],
         /** @var list<PhpExtension> optional PHP extensions to compile, required ones first */
         public array $phpExtensions = [],
+        /** @var array<string,string> name => absolute path of the .h */
+        public array $fonts = [],
     ) {
     }
 

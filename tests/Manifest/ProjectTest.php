@@ -93,6 +93,7 @@ final class ProjectTest extends TestCase
             'env' => '.env',
             'board-overrides' => ['microsd' => ['cs' => 5]],
             'options' => ['on-error' => 'continue', 'restart-delay' => 0, 'verbose' => true],
+            'fonts' => ['default' => false, 'bake' => [['name' => 'title', 'source' => 'a.ttf', 'size' => 12]]],
         ], '8.4.25');
         self::assertSame(['on-error' => 'continue', 'restart-delay' => 0, 'verbose' => true], $project->options);
         $again = Project::fromArray(json_decode(json_encode($project->toArray()), true));

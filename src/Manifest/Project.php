@@ -22,6 +22,7 @@ final readonly class Project
         public array $boardOverrides = [],
         /** @var array<string,string|int|bool> */
         public array $options = [],
+        public Fonts $fonts = new Fonts(),
     ) {
     }
 
@@ -61,6 +62,7 @@ final readonly class Project
             Read::optionalString($data, 'env', $where),
             Read::map($data, 'board-overrides', $where),
             $options,
+            Fonts::fromArray($data, $where),
         );
     }
 
@@ -80,7 +82,7 @@ final readonly class Project
 
     public function toArray(): array
     {
-        return [
+        $data = [
             'name' => $this->name,
             'sdk' => (string) $this->sdk,
             'board' => $this->board,
@@ -93,6 +95,11 @@ final readonly class Project
             'board-overrides' => (object) $this->boardOverrides,
             'options' => (object) $this->options,
         ];
+        if (!$this->fonts->isDefault()) {
+            $data['fonts'] = $this->fonts->toArray();
+        }
+
+        return $data;
     }
 
     public function phpMinor(): string

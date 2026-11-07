@@ -61,6 +61,23 @@ final class ManifestValidatorTest extends TestCase
         )));
     }
 
+    public function test_board_blocks_are_a_list_of_kind_type_strings(): void
+    {
+        self::assertSame([], (new ManifestValidator())->validate($this->with(
+            new Package('php-baremetal/led-ws2812', 'bm-lib', '1.0.0', 'p', ['board-blocks' => ['led:ws2812', 'i2c:i2c', 'display:st77916-qspi']]),
+        )));
+    }
+
+    public function test_board_blocks_must_be_a_list_of_kind_type_strings(): void
+    {
+        $message = "php-baremetal/led-ws2812: extra.baremetal.board-blocks must be a list of '<kind>:<type>' strings";
+        foreach (['led:ws2812', ['led'], ['Led:ws2812'], [1], ['led-strip:ws2812'], ['led:-ws2812'], ['led:ws_2812'], ["led:ws2812\n"]] as $blocks) {
+            self::assertSame([$message], (new ManifestValidator())->validate($this->with(
+                new Package('php-baremetal/led-ws2812', 'bm-lib', '1.0.0', 'p', ['board-blocks' => $blocks]),
+            )));
+        }
+    }
+
     public function test_hal_platform_must_match_the_project_sdk(): void
     {
         $validator = new ManifestValidator();
@@ -74,5 +91,47 @@ final class ManifestValidatorTest extends TestCase
             new Package('php-baremetal/esp32-c-hal', 'bm-hal', '1.0.0', 'p', ['platform' => 1]),
             new Package('php-baremetal/esp32-d-hal', 'bm-hal', '1.0.0', 'p', ['platform' => 'esp32']),
         )));
+    }
+
+    public function test_package_options_are_validated_and_exposed(): void
+    {
+        $options = [
+            'events-small' => ['description' => 'Small queue', 'type' => 'int', 'min' => 1, 'max' => 64, 'default' => 8],
+            'events-mode' => ['description' => 'Mode', 'values' => ['fast', 'safe'], 'default' => 'safe'],
+            'events-trace' => ['description' => 'Trace', 'type' => 'bool', 'default' => false],
+        ];
+        $ext = new Package('php-baremetal/ext-events', 'bm-ext', '1.0.0', 'p', ['module' => 'events', 'options' => $options]);
+        self::assertSame([], (new ManifestValidator())->validate($this->with($ext)));
+        self::assertSame(['events-small', 'events-mode', 'events-trace'], array_keys($ext->options()));
+        self::assertSame(8, $ext->options()['events-small']->default);
+        self::assertSame([], (new Package('a/ext-x', 'bm-ext', '1.0.0', 'p', ['module' => 'x']))->options());
+    }
+
+    public function test_package_option_definitions_must_be_valid(): void
+    {
+        $problems = (new ManifestValidator())->validate($this->with(
+            new Package('a/ext-x', 'bm-ext', '1.0.0', 'p', ['module' => 'x', 'options' => ['x-a' => ['description' => 'A', 'type' => 'int']]]),
+            new Package('a/ext-y', 'bm-ext', '1.0.0', 'p', ['module' => 'y', 'options' => ['y-a' => ['description' => 'A', 'type' => 'float', 'default' => 1]]]),
+        ));
+        self::assertSame([
+            "a/ext-x: extra.baremetal.options.x-a: 'default' is required",
+            "a/ext-y: extra.baremetal.options.y-a: 'type' must be int, bool or string, or list the allowed 'values'",
+        ], $problems);
+    }
+
+    public function test_package_options_need_the_module_prefix(): void
+    {
+        $opt = ['description' => 'A', 'type' => 'bool', 'default' => true];
+        $problems = (new ManifestValidator())->validate($this->with(
+            new Package('a/ext-events', 'bm-ext', '1.0.0', 'p', ['module' => 'events', 'options' => ['small' => $opt, 'events-small' => $opt, 'eventsx-a' => $opt]]),
+            new Package('php-baremetal/esp32-events-hal', 'bm-hal', '1.0.0', 'p', ['platform' => 'esp32', 'options' => ['events-hal-x' => $opt, 'events-x' => $opt]]),
+            new Package('php-baremetal/led-ws2812', 'bm-lib', '1.0.0', 'p', ['options' => ['led-ws2812-n' => $opt, 'other' => $opt]]),
+        ));
+        self::assertSame([
+            "a/ext-events: option 'small' must start with 'events-'",
+            "a/ext-events: option 'eventsx-a' must start with 'events-'",
+            "php-baremetal/esp32-events-hal: option 'events-x' must start with 'events-hal-'",
+            "php-baremetal/led-ws2812: option 'other' must start with 'led-ws2812-'",
+        ], $problems);
     }
 }
