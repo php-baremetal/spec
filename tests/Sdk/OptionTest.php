@@ -149,4 +149,101 @@ final class OptionTest extends TestCase
         $this->expectExceptionMessage('must be one of a, b');
         $enum->accept(true, 'w');
     }
+
+    private static function effects(array $extra = []): array
+    {
+        return ['description' => 'd', 'type' => 'set', 'values' => ['gradients', 'shadows', 'blur'], 'default' => ['gradients', 'shadows', 'blur'], ...$extra];
+    }
+
+    public function test_set_defaults_to_a_list_of_allowed_values(): void
+    {
+        $option = Option::fromArray('slate-effects', self::effects(), 'package x');
+        self::assertSame('set', $option->type);
+        self::assertSame(['gradients', 'shadows', 'blur'], $option->default);
+        self::assertSame(['gradients', 'shadows', 'blur'], $option->values);
+        self::assertSame(['shadows'], Option::fromArray('slate-effects', self::effects(['default' => ['shadows']]), 'package x')->default);
+        self::assertSame([], Option::fromArray('slate-effects', self::effects(['default' => []]), 'package x')->default);
+    }
+
+    public function test_set_accept_returns_the_values_in_declared_order(): void
+    {
+        $option = Option::fromArray('slate-effects', self::effects(), 'package x');
+        self::assertSame(['shadows', 'blur'], $option->accept(['blur', 'shadows'], 'w'));
+        self::assertSame([], $option->accept([], 'w'));
+    }
+
+    public function test_set_rejects_bad_values_lists(): void
+    {
+        foreach ([['values' => []], ['values' => [], 'default' => []]] as $extra) {
+            try {
+                Option::fromArray('slate-effects', self::effects($extra), 'package x');
+                self::fail('expected a SpecException');
+            } catch (SpecException $e) {
+                self::assertSame("package x: 'values' must not be empty", $e->getMessage());
+            }
+        }
+        $data = self::effects();
+        unset($data['values']);
+        try {
+            Option::fromArray('slate-effects', $data, 'package x');
+            self::fail('expected a SpecException');
+        } catch (SpecException $e) {
+            self::assertSame("package x: 'values' must not be empty", $e->getMessage());
+        }
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("value 'Glow' must be lowercase words joined by '-'");
+        Option::fromArray('slate-effects', self::effects(['values' => ['Glow'], 'default' => []]), 'package x');
+    }
+
+    public function test_set_rejects_bad_defaults_and_inputs(): void
+    {
+        foreach (['blur', ['glow'], ['blur', 'blur'], [1], [['blur']], ['a' => 'blur'], null, true] as $bad) {
+            try {
+                Option::fromArray('slate-effects', self::effects(['default' => $bad]), 'extra.baremetal.options.slate-effects');
+                self::fail('expected a SpecException for ' . json_encode($bad));
+            } catch (SpecException $e) {
+                self::assertStringContainsString('must be a list of gradients, shadows, blur, got ' . json_encode($bad), $e->getMessage());
+            }
+        }
+        try {
+            Option::fromArray('slate-effects', self::effects(['default' => ['glow']]), 'extra.baremetal.options.slate-effects');
+            self::fail('expected a SpecException');
+        } catch (SpecException $e) {
+            self::assertSame('extra.baremetal.options.slate-effects default: must be a list of gradients, shadows, blur, got ["glow"]', $e->getMessage());
+        }
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage('must be a list of gradients, shadows, blur, got ["glow"]');
+        Option::fromArray('slate-effects', self::effects(), 'w')->accept(['glow'], 'extra.baremetal.options.slate-effects');
+    }
+
+    public function test_set_requires_a_default(): void
+    {
+        $data = self::effects();
+        unset($data['default']);
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("'default' is required");
+        Option::fromArray('slate-effects', $data, 'package x');
+    }
+
+    public function test_set_rejects_min_max_and_pattern(): void
+    {
+        foreach (['min' => 0, 'max' => 3] as $key => $value) {
+            try {
+                Option::fromArray('slate-effects', self::effects([$key => $value]), 'package x');
+                self::fail('expected a SpecException');
+            } catch (SpecException $e) {
+                self::assertSame("package x: 'min' and 'max' are not allowed on set options", $e->getMessage());
+            }
+        }
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("'pattern' is only allowed on string options");
+        Option::fromArray('slate-effects', self::effects(['pattern' => '#^a$#D']), 'package x');
+    }
+
+    public function test_set_rejects_duplicate_values(): void
+    {
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("value 'blur' is listed twice");
+        Option::fromArray('slate-effects', self::effects(['values' => ['blur', 'blur'], 'default' => []]), 'package x');
+    }
 }

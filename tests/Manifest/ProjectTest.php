@@ -82,8 +82,8 @@ final class ProjectTest extends TestCase
     public function test_rejects_an_option_that_is_not_scalar(): void
     {
         $this->expectException(SpecException::class);
-        $this->expectExceptionMessage("extra.baremetal: option 'on-error' must be a string, an integer or a boolean");
-        Project::fromComposer('acme/blink', [...self::BAREMETAL, 'options' => ['on-error' => ['stop']]], '8.4.25');
+        $this->expectExceptionMessage("extra.baremetal: option 'on-error' must be a string, an integer, a boolean or a list of strings");
+        Project::fromComposer('acme/blink', [...self::BAREMETAL, 'options' => ['on-error' => ['a' => 'stop']]], '8.4.25');
     }
 
     public function test_round_trip(): void
@@ -98,6 +98,20 @@ final class ProjectTest extends TestCase
         self::assertSame(['on-error' => 'continue', 'restart-delay' => 0, 'verbose' => true], $project->options);
         $again = Project::fromArray(json_decode(json_encode($project->toArray()), true));
         self::assertEquals($project, $again);
+    }
+
+    public function test_options_accept_a_list_of_strings_for_set_options(): void
+    {
+        $project = Project::fromComposer('acme/blink', [...self::BAREMETAL, 'options' => ['slate-effects' => ['shadows', 'blur'], 'none' => []]], '8.4.25');
+        self::assertSame(['slate-effects' => ['shadows', 'blur'], 'none' => []], $project->options);
+        foreach ([[1], [['x']], ['a' => 'x']] as $bad) {
+            try {
+                Project::fromComposer('acme/blink', [...self::BAREMETAL, 'options' => ['slate-effects' => $bad]], '8.4.25');
+                self::fail('expected a SpecException');
+            } catch (SpecException $e) {
+                self::assertSame("extra.baremetal: option 'slate-effects' must be a string, an integer, a boolean or a list of strings", $e->getMessage());
+            }
+        }
     }
 
     public function test_options_with_an_integer_key_are_rejected(): void

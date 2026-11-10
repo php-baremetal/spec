@@ -7,6 +7,10 @@ namespace PhpBaremetal\Spec\Sdk\Descriptor;
 use PhpBaremetal\Spec\SpecException;
 use PhpBaremetal\Spec\Support\Read;
 
+/**
+ * An option of the SDK, a runtime, a storage, a PHP extension or a package. The type 'set' (a list of allowed
+ * values) is meant for package options; 'when' keys of a PHP extension only take enum and bool options.
+ */
 final readonly class Option
 {
     private const NAME = '/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/D';
@@ -16,7 +20,7 @@ final readonly class Option
         public string $name,
         public string $description,
         public string $type,
-        public string|int|bool $default,
+        public string|int|bool|array $default,
         public array $values = [],
         public ?int $min = null,
         public ?int $max = null,
@@ -33,17 +37,24 @@ final readonly class Option
         if (array_key_exists('pattern', $data) && (array_key_exists('values', $data) || ($data['type'] ?? null) !== 'string')) {
             throw new SpecException("{$where}: 'pattern' is only allowed on string options");
         }
-        if (array_key_exists('values', $data)) {
+        $isSet = ($data['type'] ?? null) === 'set';
+        if ($isSet && (array_key_exists('min', $data) || array_key_exists('max', $data))) {
+            throw new SpecException("{$where}: 'min' and 'max' are not allowed on set options");
+        }
+        if (array_key_exists('values', $data) || $isSet) {
             $values = Read::stringList($data, 'values', $where);
-            foreach ($values as $value) {
+            foreach ($values as $i => $value) {
                 if (!preg_match(self::NAME, $value)) {
                     throw new SpecException("{$where}: value '{$value}' must be lowercase words joined by '-'");
+                }
+                if ($isSet && in_array($value, array_slice($values, 0, $i), true)) {
+                    throw new SpecException("{$where}: value '{$value}' is listed twice");
                 }
             }
             if ($values === []) {
                 throw new SpecException("{$where}: 'values' must not be empty");
             }
-            $option = new self($name, $description, 'enum', $values[0], $values);
+            $option = $isSet ? new self($name, $description, 'set', [], $values) : new self($name, $description, 'enum', $values[0], $values);
         } else {
             $type = Read::string($data, 'type', $where);
             $option = match ($type) {
@@ -60,9 +71,12 @@ final readonly class Option
         return new self($name, $description, $option->type, $option->accept($data['default'], "{$where} default"), $option->values, $option->min, $option->max, $option->pattern);
     }
 
-    public function accept(mixed $value, string $where): string|int|bool
+    public function accept(mixed $value, string $where): string|int|bool|array
     {
         return match ($this->type) {
+            'set' => is_array($value) && array_is_list($value) && self::onlyStrings($value) && count($value) === count(array_unique($value)) && array_diff($value, $this->values) === []
+                ? array_values(array_filter($this->values, static fn (string $allowed): bool => in_array($allowed, $value, true)))
+                : throw new SpecException("{$where}: must be a list of " . implode(', ', $this->values) . ', got ' . json_encode($value)),
             'enum' => is_string($value) && in_array($value, $this->values, true)
                 ? $value
                 : throw new SpecException("{$where}: must be one of " . implode(', ', $this->values) . ', got ' . json_encode($value)),
@@ -74,6 +88,11 @@ final readonly class Option
                 ? $value
                 : throw new SpecException("{$where}: must be an integer between " . ($this->min ?? 'any') . ' and ' . ($this->max ?? 'any') . ', got ' . json_encode($value)),
         };
+    }
+
+    private static function onlyStrings(array $value): bool
+    {
+        return array_filter($value, 'is_string') === $value;
     }
 
     private static function pattern(array $data, string $where): ?string

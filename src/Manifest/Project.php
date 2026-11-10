@@ -20,7 +20,7 @@ final readonly class Project
         public string $entry = 'index.php',
         public ?string $env = null,
         public array $boardOverrides = [],
-        /** @var array<string,string|int|bool> */
+        /** @var array<string,string|int|bool|list<string>> */
         public array $options = [],
         public Fonts $fonts = new Fonts(),
     ) {
@@ -45,8 +45,8 @@ final readonly class Project
             if (is_int($name)) {
                 throw new SpecException("{$where}: 'options' keys must be option names, got {$name}");
             }
-            if (!is_string($value) && !is_int($value) && !is_bool($value)) {
-                throw new SpecException("{$where}: option '{$name}' must be a string, an integer or a boolean");
+            if (!is_string($value) && !is_int($value) && !is_bool($value) && !(is_array($value) && array_is_list($value) && array_filter($value, 'is_string') === $value)) {
+                throw new SpecException("{$where}: option '{$name}' must be a string, an integer, a boolean or a list of strings");
             }
         }
 

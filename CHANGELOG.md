@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0
+
+- Added: option type "set": a list of allowed values ("type": "set", "values": [...], a list as default), for packages whose option picks several features. A project sets it with a list of strings in extra.baremetal.options (`Manifest\Project` accepts it).
+
 ## 1.1.0
 
 - Added: packages may declare extra.baremetal.ide-stubs (relative paths of .stub files with the package's PHP declarations for IDEs); the manifest validator checks the format.

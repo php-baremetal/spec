@@ -187,6 +187,7 @@ final readonly class PhpExtension
             if ($effects === []) {
                 continue;
             }
+            // 'set' is meant for package options: it has no single value to match a 'when' key, so it is refused here.
             $values = match ($parsed->type) {
                 'enum' => $parsed->values,
                 'bool' => ['true', 'false'],

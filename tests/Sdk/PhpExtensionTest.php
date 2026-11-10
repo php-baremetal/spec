@@ -109,6 +109,7 @@ final class PhpExtensionTest extends TestCase
         yield 'requires key' => [[...$base, 'requires' => ['packages' => []]], "unknown key 'packages' in 'requires'"];
         yield 'self requirement' => [[...$base, 'requires' => ['extensions' => ['x']]], "invalid required extension 'x'"];
         yield 'bad define' => [[...$base, 'defines' => ['A B' => 1]], "invalid define name 'A B'"];
+        yield 'when on set' => [[...$base, 'options' => ['x-s' => ['description' => 's', 'type' => 'set', 'values' => ['a', 'b'], 'default' => ['a'], 'when' => ['a' => []]]]], "'when' is only allowed on enum and bool options"];
         yield 'when on int' => [[...$base, 'options' => ['x-n' => ['description' => 'n', 'type' => 'int', 'default' => 1, 'when' => ['1' => []]]]], "'when' is only allowed on enum and bool options"];
         yield 'when value' => [[...$base, 'options' => ['x-b' => ['description' => 'b', 'type' => 'bool', 'default' => true, 'when' => ['yes' => []]]]], "'when' value 'yes' must be one of true, false"];
         yield 'startup-kb type' => [[...$base, 'startup-kb' => '12'], "'startup-kb' must be an integer"];
