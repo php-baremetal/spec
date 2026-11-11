@@ -23,6 +23,7 @@ final readonly class Project
         /** @var array<string,string|int|bool|list<string>> */
         public array $options = [],
         public Fonts $fonts = new Fonts(),
+        public Assets $assets = new Assets(),
     ) {
     }
 
@@ -63,6 +64,7 @@ final readonly class Project
             Read::map($data, 'board-overrides', $where),
             $options,
             Fonts::fromArray($data, $where),
+            Assets::fromArray($data, $where),
         );
     }
 
@@ -97,6 +99,10 @@ final readonly class Project
         ];
         if (!$this->fonts->isDefault()) {
             $data['fonts'] = $this->fonts->toArray();
+        }
+
+        if (!$this->assets->isEmpty()) {
+            $data['assets'] = $this->assets->toArray();
         }
 
         return $data;

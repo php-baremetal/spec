@@ -50,11 +50,61 @@ final class BoardTest extends TestCase
         self::assertSame('v3', $board->withOverrides([])->revision);
     }
 
-    public function test_override_of_missing_peripheral_fails(): void
+    public function test_override_of_missing_peripheral_without_type_fails(): void
     {
         $this->expectException(SpecException::class);
-        $this->expectExceptionMessage("board-overrides: board 'demo-eth' has no 'display'");
+        $this->expectExceptionMessage("board-overrides: board 'demo-eth' has no 'display' to override: to add the block, give its 'type'");
         $this->board()->withOverrides(['display' => ['cs' => 1]]);
+    }
+
+    public function test_override_with_a_type_adds_a_block_the_board_lacks(): void
+    {
+        $generic = Board::fromArray('generic', ['name' => 'Generic', 'chip' => 'esp32s3', 'flash' => '8MB', 'network' => ['type' => 'wifi']], 'boards/generic.json');
+        $board = $generic->withOverrides(['microsd' => ['type' => 'spi', 'cs' => 10, 'sclk' => 12, 'mosi' => 11, 'miso' => 13]]);
+        self::assertTrue($board->has('microsd'));
+        self::assertSame(['type' => 'spi', 'cs' => 10, 'sclk' => 12, 'mosi' => 11, 'miso' => 13], $board->peripherals['microsd']);
+        self::assertSame(['network' => 'wifi', 'microsd' => 'spi'], $board->capabilities());
+        self::assertFalse($generic->has('microsd'), 'the board itself is not changed');
+    }
+
+    public function test_an_added_block_needs_a_non_empty_string_type(): void
+    {
+        foreach ([['type' => ''], ['type' => 3], ['type' => null]] as $bad) {
+            try {
+                $this->board()->withOverrides(['display' => [...$bad, 'cs' => 1]]);
+                self::fail('accepted ' . json_encode($bad));
+            } catch (SpecException $e) {
+                self::assertSame("board-overrides: 'display.type' must be a non-empty string", $e->getMessage());
+            }
+        }
+    }
+
+    public function test_an_added_block_needs_a_block_name(): void
+    {
+        foreach (['Net', 'led_2', 'led 2', '-led', 'led-', '2led', ''] as $bad) {
+            try {
+                $this->board()->withOverrides([$bad => ['type' => 'ws2812']]);
+                self::fail("accepted '{$bad}'");
+            } catch (SpecException $e) {
+                self::assertSame("board-overrides: '{$bad}' is not a block name (lower-case letters and digits, parts joined by '-', e.g. led-2)", $e->getMessage());
+            }
+        }
+        self::assertTrue($this->board()->withOverrides(['led-2' => ['type' => 'ws2812']])->has('led-2'));
+    }
+
+    public function test_board_fields_cannot_be_added_as_blocks(): void
+    {
+        $this->expectException(SpecException::class);
+        $this->expectExceptionMessage("board-overrides: board 'demo-eth' has no 'flash' to override");
+        $this->board()->withOverrides(['flash' => ['type' => 'x']]);
+    }
+
+    public function test_the_same_type_of_an_existing_block_is_accepted(): void
+    {
+        $board = $this->board()->withOverrides(['microsd' => ['type' => 'spi', 'cs' => 9]]);
+        self::assertSame('spi', $board->peripherals['microsd']['type']);
+        self::assertSame(9, $board->peripherals['microsd']['cs']);
+        self::assertSame(7, $board->peripherals['microsd']['sclk']);
     }
 
     public function test_peripheral_needs_a_type(): void
@@ -67,7 +117,7 @@ final class BoardTest extends TestCase
     public function test_override_cannot_change_type(): void
     {
         $this->expectException(SpecException::class);
-        $this->expectExceptionMessage("board-overrides: 'microsd.type' cannot be overridden");
+        $this->expectExceptionMessage("board-overrides: 'microsd.type' cannot be overridden: board 'demo-eth' has a 'spi' microsd");
         $this->board()->withOverrides(['microsd' => ['type' => 'sdmmc']]);
     }
 

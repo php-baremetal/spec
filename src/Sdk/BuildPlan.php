@@ -37,12 +37,22 @@ final readonly class BuildPlan
         public array $phpExtensions = [],
         /** @var array<string,string> name => absolute path of the .h */
         public array $fonts = [],
+        /** @var list<PreparedAsset> every asset of the project, all storages */
+        public array $assets = [],
+        /** the folder that goes into the flash image (sources + embedded assets); null: the sources */
+        public ?string $imageDir = null,
     ) {
     }
 
     public function srcDir(): string
     {
         return $this->projectDir . '/' . $this->manifest->project->src;
+    }
+
+    /** The folder that goes into the flash image: the sources, or a staging folder with the embedded assets too. */
+    public function imageDir(): string
+    {
+        return $this->imageDir ?? $this->srcDir();
     }
 
     public function entry(): string

@@ -52,18 +52,38 @@ final readonly class Board
         );
     }
 
+    /**
+     * The board after extra.baremetal.board-overrides. An entry for a block the board has replaces the keys it
+     * gives (a 'type' may only repeat the board's); an entry for a block the board lacks adds it whole, with its
+     * 'type' and a block name (lower-case letters and digits, parts joined by '-'). The top-level fields are not
+     * blocks. Which names and types a build accepts is up to the build tool and the SDK.
+     */
     public function withOverrides(array $overrides): self
     {
         $peripherals = $this->peripherals;
         foreach ($overrides as $key => $block) {
-            if (!isset($peripherals[$key])) {
+            $key = (string) $key;
+            if (in_array($key, self::FIELDS, true)) {
                 throw new SpecException("board-overrides: board '{$this->id}' has no '{$key}' to override");
             }
             if (!is_array($block) || ($block !== [] && array_is_list($block))) {
                 throw new SpecException("board-overrides: '{$key}' must be an object");
             }
-            if (array_key_exists('type', $block)) {
-                throw new SpecException("board-overrides: '{$key}.type' cannot be overridden");
+            if (!isset($peripherals[$key])) {
+                if (!preg_match('/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/D', $key)) {
+                    throw new SpecException("board-overrides: '{$key}' is not a block name (lower-case letters and digits, parts joined by '-', e.g. led-2)");
+                }
+                if (!array_key_exists('type', $block)) {
+                    throw new SpecException("board-overrides: board '{$this->id}' has no '{$key}' to override: to add the block, give its 'type'");
+                }
+                if (!is_string($block['type']) || $block['type'] === '') {
+                    throw new SpecException("board-overrides: '{$key}.type' must be a non-empty string");
+                }
+                $peripherals[$key] = $block;
+                continue;
+            }
+            if (array_key_exists('type', $block) && $block['type'] !== $peripherals[$key]['type']) {
+                throw new SpecException("board-overrides: '{$key}.type' cannot be overridden: board '{$this->id}' has a '{$peripherals[$key]['type']}' {$key}");
             }
             $peripherals[$key] = array_replace($peripherals[$key], $block);
         }
