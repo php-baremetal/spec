@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Fixed: the 1.4.0 package on Packagist was built from an earlier commit and read `boards/catalog.json` of the SDK as a board (`boards/catalog.json: 'esp32.type' must be a non-empty string`). 1.4.1 has the 1.4.0 changes as listed below, including the skip of `boards/catalog.json`.
+
 ## 1.4.0
 
 - Added: board packages (Composer type `bm-boards`). `SdkLoader::withBoardPackages($sdk, $packages, $projectDir)` returns the `Sdk` with the boards of the given packages added, read from `boards/<sdk name>/*.json` and checked against their chip like the SDK's boards; errors name the package and the file. Folders of other SDKs and packages of other types are ignored. The manifest validator asks no `extra.baremetal` keys of a `bm-boards` package.
