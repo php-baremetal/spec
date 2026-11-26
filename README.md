@@ -20,7 +20,8 @@ composer require php-baremetal/spec
   (a version such as `8.5.11`, `phpMinor()` gives `8.5`), `src`, `entry`, `env`, `boardOverrides` and `options`.
   `Project::fromComposer()` builds it from `extra.baremetal` and `config.platform.php`.
 - `Package`: `name`, `type` (always `bm-*`), `version`, `path` and `meta` (the package's `extra.baremetal`).
-  `kind()` returns the type without `bm-`.
+  `kind()` returns the type without `bm-`. A `bm-boards` package carries boards (see below) and needs no
+  `extra.baremetal`.
 - `Manifest::fromFile()`, `fromArray()`, `toJson()`, `ofKind('ext')`, `has($name)`.
 - `ManifestValidator::validate()` returns a list of problems: extensions without a `module` or sharing one, a
   `bm-hal` for another platform than the SDK's, a `bm-php-ext` that carries more than `php-ext`,
@@ -36,6 +37,17 @@ An SDK is a directory (`sdk.json`, `chips/`, `boards/`, `runtimes/`, `storages/`
   modules and entry symbols for clashes, extension requirements for cycles. The descriptor classes are in
   `Sdk\Descriptor` (`SdkDescriptor`, `Chip`, `Board`, `Module`, `Option`, `PhpExtension`, `PhpRelease`,
   `Requirements`, `SourceArchive`).
+- `sdk.json` may list the official board packages in `board-packages` (Composer names, `SdkDescriptor::$boardPackages`,
+  empty when missing).
+- `SdkLoader::withBoardPackages($sdk, $packages, $projectDir)` returns the `Sdk` with the boards of the given
+  `bm-boards` packages (manifest `Package`s; other types are skipped) added: `boards/<sdk name>/*.json` of each
+  package, checked against their chip like the SDK's boards. Folders of other SDKs are ignored. A relative package
+  path is resolved against `$projectDir`. Errors name the package and the file
+  (`vendor/boards-x: boards/esp32/x.json: chip 'y' does not exist`).
+- Each `Board` knows its `source`: `Board::SDK` (`sdk`) or the package name; `qualifiedId()` is `<source>:<id>`.
+  `Sdk::board($id)` takes the id or that long form (`sdk:<id>`, `<vendor>/<package>:<id>`). An id defined by more
+  than one source must be given in the long form; `Sdk::$boards` keys such boards by the long form and the others by
+  their id.
 - `Sdk\Driver` is the interface an SDK driver implements, `Driver::CONTRACT` being the contract version (1) that
   `sdk.json` must declare:
 

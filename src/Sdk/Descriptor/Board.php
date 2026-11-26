@@ -9,6 +9,9 @@ use PhpBaremetal\Spec\Support\Read;
 
 final readonly class Board
 {
+    /** Source of the boards in the SDK's boards/ folder; any other source is a Composer package name. */
+    public const SDK = 'sdk';
+
     private const FIELDS = ['name', 'chip', 'psram', 'flash', 'flash-mode', 'revision', 'console'];
 
     /** @param array<string,array<string,mixed>> $peripherals every block carries a 'type' */
@@ -24,10 +27,12 @@ final readonly class Board
         public ?string $flashMode = null,
         /** Chip silicon revision family the firmware targets (e.g. v1, v3); null is the SDK's default. */
         public ?string $revision = null,
+        /** Where the board comes from: Board::SDK or the name of a bm-boards package. */
+        public string $source = self::SDK,
     ) {
     }
 
-    public static function fromArray(string $id, array $data, string $where): self
+    public static function fromArray(string $id, array $data, string $where, string $source = self::SDK): self
     {
         $peripherals = array_diff_key($data, array_flip(self::FIELDS));
         foreach ($peripherals as $key => $block) {
@@ -49,6 +54,7 @@ final readonly class Board
             $peripherals,
             Read::optionalString($data, 'flash-mode', $where),
             Read::optionalString($data, 'revision', $where),
+            $source,
         );
     }
 
@@ -88,7 +94,18 @@ final readonly class Board
             $peripherals[$key] = array_replace($peripherals[$key], $block);
         }
 
-        return new self($this->id, $this->name, $this->chip, $this->psram, $this->flash, $this->console, $peripherals, $this->flashMode, $this->revision);
+        return new self($this->id, $this->name, $this->chip, $this->psram, $this->flash, $this->console, $peripherals, $this->flashMode, $this->revision, $this->source);
+    }
+
+    public function fromSdk(): bool
+    {
+        return $this->source === self::SDK;
+    }
+
+    /** The long id '<source>:<id>' (e.g. sdk:demo, vendor/boards-x:demo), which picks the board among duplicates. */
+    public function qualifiedId(): string
+    {
+        return "{$this->source}:{$this->id}";
     }
 
     public function has(string $capability): bool

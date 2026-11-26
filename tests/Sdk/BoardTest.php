@@ -196,4 +196,33 @@ final class BoardTest extends TestCase
             'php' => ['8.4' => ['version' => '8.5.1', 'url' => 'u', 'sha256' => str_repeat('a', 64)]],
         ]);
     }
+
+    private static function descriptor(array $extra): SdkDescriptor
+    {
+        return SdkDescriptor::fromArray([
+            'name' => 'esp32',
+            'version' => '1.0.0',
+            'contract' => 1,
+            'driver' => ['class' => 'V\\D', 'autoload' => ['psr-4' => ['V\\' => 'driver/']]],
+            'php' => ['8.4' => ['version' => '8.4.1', 'url' => 'u', 'sha256' => str_repeat('a', 64)]],
+        ] + $extra);
+    }
+
+    public function test_sdk_lists_its_board_packages(): void
+    {
+        self::assertSame([], self::descriptor([])->boardPackages);
+        self::assertSame(['php-baremetal/boards-waveshare'], self::descriptor(['board-packages' => ['php-baremetal/boards-waveshare']])->boardPackages);
+    }
+
+    public function test_board_packages_must_be_a_list_of_package_names(): void
+    {
+        foreach ([['a/b' => 'c'], 'a/b', [1], ['boards-waveshare'], ['A/B']] as $value) {
+            try {
+                self::descriptor(['board-packages' => $value]);
+                self::fail('accepted ' . json_encode($value));
+            } catch (SpecException $e) {
+                self::assertSame("sdk.json: 'board-packages' must be a list of Composer package names (vendor/name)", $e->getMessage());
+            }
+        }
+    }
 }

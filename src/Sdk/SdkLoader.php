@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpBaremetal\Spec\Sdk;
 
+use PhpBaremetal\Spec\Manifest\Package;
 use PhpBaremetal\Spec\Sdk\Descriptor\Board;
 use PhpBaremetal\Spec\Sdk\Descriptor\Chip;
 use PhpBaremetal\Spec\Sdk\Descriptor\Module;
@@ -14,6 +15,9 @@ use PhpBaremetal\Spec\Support\Json;
 
 final class SdkLoader
 {
+    /** The reserved name of the board catalog in the sdk's boards/ (boards/catalog.json): never read as a board. */
+    public const CATALOG = 'catalog';
+
     public function load(string $dir): Sdk
     {
         $root = realpath($dir);
@@ -37,6 +41,9 @@ final class SdkLoader
         $boards = [];
         foreach ($this->files($root, 'boards/*.json') as $relative => $file) {
             $id = basename($file, '.json');
+            if ($id === self::CATALOG) {
+                continue; // boards/catalog.json is the docs/photo catalog, not a board
+            }
             $board = Board::fromArray($id, Json::decodeFile($file), $relative);
             $this->checkBoard($board, $chips, $relative);
             $boards[$id] = $board;
@@ -51,6 +58,66 @@ final class SdkLoader
             $this->modules($root, 'storage'),
             $this->phpExtensions($root, $descriptor),
         );
+    }
+
+    /**
+     * The sdk with the boards of the given bm-boards packages added (boards/<sdk name>/*.json, checked like the
+     * sdk's). Packages of other types and folders of other sdks are ignored; a package given again replaces its
+     * boards. A relative package path (as in the manifest) is resolved against $projectDir.
+     *
+     * @param iterable<Package> $packages
+     */
+    public function withBoardPackages(Sdk $sdk, iterable $packages, ?string $projectDir = null): Sdk
+    {
+        $added = [];
+        foreach ($packages as $package) {
+            if ($package->kind() !== 'boards') {
+                continue;
+            }
+            $dir = $package->path;
+            if ($projectDir !== null && !self::isAbsolute($dir)) {
+                $dir = rtrim($projectDir, '/\\') . '/' . (str_starts_with($dir, './') ? substr($dir, 2) : $dir);
+            }
+            $root = realpath($dir);
+            if ($root === false || !is_dir($root)) {
+                throw new SpecException("{$package->name}: package directory not found: {$dir}");
+            }
+            $added[$package->name] = [];
+            foreach ($this->files($root, "boards/{$sdk->descriptor->name}/*.json") as $relative => $file) {
+                $where = "{$package->name}: {$relative}";
+                $board = Board::fromArray(basename($file, '.json'), Json::decodeFile($file), $where, $package->name);
+                $this->checkBoard($board, $sdk->chips, $where);
+                $added[$package->name][] = $board;
+            }
+        }
+
+        $boards = array_values(array_filter($sdk->boards, static fn (Board $b) => !isset($added[$b->source])));
+        foreach ($added as $list) {
+            array_push($boards, ...$list);
+        }
+
+        return new Sdk($sdk->dir, $sdk->descriptor, $sdk->chips, self::keyBoards($boards), $sdk->runtimes, $sdk->storages, $sdk->phpExtensions);
+    }
+
+    /**
+     * Keys each board by its id, or by '<source>:<id>' when the id has more than one source.
+     *
+     * @param list<Board> $boards
+     * @return array<string,Board>
+     */
+    private static function keyBoards(array $boards): array
+    {
+        $count = array_count_values(array_map(static fn (Board $b) => $b->id, $boards));
+        $keyed = [];
+        foreach ($boards as $board) {
+            $keyed[$count[$board->id] > 1 ? $board->qualifiedId() : $board->id] = $board;
+        }
+        return $keyed;
+    }
+
+    private static function isAbsolute(string $path): bool
+    {
+        return str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[A-Za-z]:/', $path) === 1;
     }
 
     /** @return array<string,array<string,PhpExtension>> */

@@ -78,6 +78,14 @@ final class SdkLoaderTest extends TestCase
         (new SdkLoader())->load($dir);
     }
 
+    public function test_boards_catalog_is_not_read_as_a_board(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/boards/catalog.json', '{"demo":{"demo-board":{"docs":"https://example.com/demo"}}}');
+        $sdk = (new SdkLoader())->load($dir);
+        self::assertSame(['demo-board'], array_keys($sdk->boards));
+    }
+
     public function test_board_peripheral_unsupported_by_chip_is_rejected(): void
     {
         $dir = $this->copyFixture();

@@ -15,7 +15,7 @@ final readonly class Sdk
 {
     /**
      * @param array<string,Chip>   $chips
-     * @param array<string,Board>  $boards
+     * @param array<string,Board>  $boards keyed by id, or by '<source>:<id>' when the id has more than one source
      * @param array<string,Module> $runtimes
      * @param array<string,Module> $storages
      * @param array<string,array<string,PhpExtension>> $phpExtensions minor => name => extension
@@ -36,9 +36,38 @@ final readonly class Sdk
         return $this->pick($this->chips, $id, 'chip');
     }
 
+    /** A board by id, or by '<source>:<id>' (sdk:<id> or <vendor>/<package>:<id>) to pick among duplicates. */
     public function board(string $id): Board
     {
+        if (isset($this->boards[$id])) {
+            return $this->boards[$id];
+        }
+        $long = str_contains($id, ':');
+        $matches = [];
+        foreach ($this->boards as $board) {
+            if ($long ? $board->qualifiedId() === $id : $board->id === $id) {
+                $matches[] = $board;
+            }
+        }
+        if (count($matches) === 1) {
+            return $matches[0];
+        }
+        if ($matches !== []) {
+            throw new SpecException(sprintf(
+                "board '%s' is defined by %s: use %s",
+                $id,
+                self::either(array_map(static fn (Board $b) => $b->fromSdk() ? 'the sdk' : $b->source, $matches), 'and'),
+                self::either(array_map(static fn (Board $b) => "'{$b->qualifiedId()}'", $matches), 'or'),
+            ));
+        }
         return $this->pick($this->boards, $id, 'board');
+    }
+
+    /** @param list<string> $items */
+    private static function either(array $items, string $last): string
+    {
+        $tail = array_pop($items);
+        return $items === [] ? $tail : implode(', ', $items) . " {$last} {$tail}";
     }
 
     public function runtime(string $id): Module

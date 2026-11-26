@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- Added: board packages (Composer type `bm-boards`). `SdkLoader::withBoardPackages($sdk, $packages, $projectDir)` returns the `Sdk` with the boards of the given packages added, read from `boards/<sdk name>/*.json` and checked against their chip like the SDK's boards; errors name the package and the file. Folders of other SDKs and packages of other types are ignored. The manifest validator asks no `extra.baremetal` keys of a `bm-boards` package.
+- Added: `Board::$source` (`Board::SDK` or the package name), `Board::fromSdk()` and `Board::qualifiedId()` (`<source>:<id>`). `Board::withOverrides()` keeps the source.
+- Added: `Sdk::board()` accepts the long form `<source>:<id>` (`sdk:<id>`, `<vendor>/<package>:<id>`). A short id defined by more than one source fails, naming the sources and the long forms to use. `Sdk::$boards` keys such boards by their long form, the others by their id as before.
+- Added: optional `board-packages` in `sdk.json` (`SdkDescriptor::$boardPackages`), the official board packages as a list of Composer package names; empty when missing.
+- Changed: `SdkLoader::load()` skips `boards/catalog.json` (`SdkLoader::CATALOG`), the SDK's board catalog (online docs and photo of each board, same format as a board package's). The name is reserved: an SDK board cannot be called `catalog`.
+
 ## 1.3.1
 
 - Changed: `Board::withOverrides()` adds a block the board does not have when the entry gives its `type` (a non-empty string), on any board: `{"microsd": {"type": "spi", "cs": 10, ...}}`. Without a `type` such an entry still fails, now with the hint to give one. On a block the board has, a `type` equal to the board's is accepted (no effect) and a different one still fails, naming the board's type. The name of an added block must be a block name (lower-case letters and digits, parts joined by `-`, e.g. `led-2`). Blocks cannot be removed, and the board's top-level fields are not blocks. The keys of an added block are checked by whoever reads it (the SDK driver for its blocks, a package for its own).

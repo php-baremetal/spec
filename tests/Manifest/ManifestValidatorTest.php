@@ -151,4 +151,14 @@ final class ManifestValidatorTest extends TestCase
             "php-baremetal/led-ws2812: option 'other' must start with 'led-ws2812-'",
         ], $problems);
     }
+
+    public function test_board_packages_need_no_extra_baremetal(): void
+    {
+        $package = new Package('php-baremetal/boards-waveshare', 'bm-boards', '1.0.0', '.phpbm/packages/php-baremetal/boards-waveshare', []);
+        self::assertSame('boards', $package->kind());
+        self::assertSame([], (new ManifestValidator())->validate($this->with($package)));
+        self::assertSame([$package], $this->with($package)->ofKind('boards'));
+        $parsed = Package::fromArray(['name' => 'a/b', 'type' => 'bm-boards', 'version' => '1.0.0', 'path' => 'p'], 'manifest.packages[0]');
+        self::assertSame([], $parsed->meta);
+    }
 }

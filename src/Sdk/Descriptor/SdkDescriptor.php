@@ -9,11 +9,15 @@ use PhpBaremetal\Spec\Support\Read;
 
 final readonly class SdkDescriptor
 {
+    /** Composer's package name format. */
+    private const PACKAGE_NAME = '#^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$#D';
+
     /**
      * @param array<string,string>        $autoload namespace prefix => directory relative to the SDK
      * @param array<string,PhpRelease>    $php      minor => release
      * @param array<string,SourceArchive> $sources
      * @param array<string,Option>        $options
+     * @param list<string>                $boardPackages official bm-boards packages (Composer names)
      */
     public function __construct(
         public string $name,
@@ -24,6 +28,7 @@ final readonly class SdkDescriptor
         public array $php,
         public array $sources,
         public array $options = [],
+        public array $boardPackages = [],
     ) {
     }
 
@@ -59,6 +64,17 @@ final readonly class SdkDescriptor
             $options[(string) $name] = Option::fromArray((string) $name, is_array($option) ? $option : [], "{$where} option {$name}");
         }
 
+        $boardPackages = $data['board-packages'] ?? [];
+        $valid = is_array($boardPackages) && array_is_list($boardPackages);
+        foreach ($valid ? $boardPackages : [] as $package) {
+            if (!is_string($package) || !preg_match(self::PACKAGE_NAME, $package)) {
+                $valid = false;
+            }
+        }
+        if (!$valid) {
+            throw new SpecException("{$where}: 'board-packages' must be a list of Composer package names (vendor/name)");
+        }
+
         return new self(
             Read::string($data, 'name', $where),
             Read::string($data, 'version', $where),
@@ -68,6 +84,7 @@ final readonly class SdkDescriptor
             $php,
             $sources,
             $options,
+            $boardPackages,
         );
     }
 
