@@ -103,6 +103,16 @@ final class SdkLoaderTest extends TestCase
         self::assertSame(['led' => 'apa102', 'led-2' => 'ws2812'], $sdk->board('led')->capabilities());
     }
 
+    public function test_board_pins_resolve_in_its_blocks(): void
+    {
+        $dir = $this->copyFixture();
+        file_put_contents($dir . '/boards/nano.json', '{"name":"Nano","chip":"demo","flash":"4MB","pins":{"A4":11,"A5":12},"i2c":{"type":"i2c","sda":"A4","scl":"A5"}}');
+        $board = (new SdkLoader())->load($dir)->board('nano');
+        self::assertSame(['A4' => 11, 'A5' => 12], $board->pins);
+        self::assertSame(['type' => 'i2c', 'sda' => 11, 'scl' => 12], $board->peripherals['i2c']);
+        self::assertSame(['i2c' => 'i2c'], $board->capabilities());
+    }
+
     public function test_missing_php_directory_is_rejected(): void
     {
         $dir = $this->copyFixture();

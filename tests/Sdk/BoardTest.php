@@ -128,6 +128,111 @@ final class BoardTest extends TestCase
         $this->board()->withOverrides(['microsd' => [1, 2]]);
     }
 
+    private function nano(array $extra = []): Board
+    {
+        return Board::fromArray('nano', [
+            'name' => 'Nano',
+            'chip' => 'esp32s3',
+            'flash' => '16MB',
+            'pins' => ['D13' => 48, 'A4' => 11, 'A5' => 12, 'LED_BUILTIN' => 48, 'D0' => 44],
+            'i2c' => ['type' => 'i2c', 'sda' => 'A4', 'scl' => 'A5'],
+        ] + $extra, 'boards/nano.json');
+    }
+
+    public function test_pins_are_kept_in_file_order(): void
+    {
+        self::assertSame(['D13' => 48, 'A4' => 11, 'A5' => 12, 'LED_BUILTIN' => 48, 'D0' => 44], $this->nano()->pins);
+    }
+
+    public function test_pins_are_empty_when_missing(): void
+    {
+        self::assertSame([], $this->board()->pins);
+        self::assertSame([], Board::fromArray('x', ['name' => 'X', 'chip' => 'c', 'flash' => '4MB', 'pins' => []], 'boards/x.json')->pins);
+    }
+
+    public function test_pins_are_not_a_block(): void
+    {
+        self::assertSame(['i2c' => 'i2c'], $this->nano()->capabilities());
+        self::assertFalse($this->nano()->has('pins'));
+        self::assertArrayNotHasKey('pins', $this->nano()->peripherals);
+    }
+
+    public function test_pin_names_in_blocks_become_their_gpio(): void
+    {
+        $board = $this->nano([
+            'led' => ['type' => 'D13', 'pin' => 'LED_BUILTIN', 'mode' => 'D0x', 'cs' => 5, 'expander' => 'exio2'],
+        ]);
+        self::assertSame(['type' => 'i2c', 'sda' => 11, 'scl' => 12], $board->peripherals['i2c']);
+        self::assertSame(['type' => 'D13', 'pin' => 48, 'mode' => 'D0x', 'cs' => 5, 'expander' => 'exio2'], $board->peripherals['led']);
+    }
+
+    public function test_pins_must_be_an_object(): void
+    {
+        foreach (['D13', 3, [48, 11], null] as $bad) {
+            try {
+                Board::fromArray('x', ['name' => 'X', 'chip' => 'c', 'flash' => '4MB', 'pins' => $bad], 'boards/x.json');
+                self::fail('accepted ' . json_encode($bad));
+            } catch (SpecException $e) {
+                self::assertSame("boards/x.json: 'pins' must be an object (pin name => GPIO number)", $e->getMessage());
+            }
+        }
+    }
+
+    public function test_pin_names_must_be_upper_case(): void
+    {
+        foreach (['d13', 'Led', '1A', '_A', 'A-1', 'A 1', ''] as $bad) {
+            try {
+                Board::fromArray('x', ['name' => 'X', 'chip' => 'c', 'flash' => '4MB', 'pins' => [$bad => 1]], 'boards/x.json');
+                self::fail("accepted '{$bad}'");
+            } catch (SpecException $e) {
+                self::assertSame("boards/x.json: pin name '{$bad}' is not valid (upper-case letters, digits and '_', starting with a letter, e.g. LED_BUILTIN)", $e->getMessage());
+            }
+        }
+    }
+
+    public function test_pin_values_must_be_non_negative_integers(): void
+    {
+        foreach (['48', -1, 4.0, null, true, [1]] as $bad) {
+            try {
+                Board::fromArray('x', ['name' => 'X', 'chip' => 'c', 'flash' => '4MB', 'pins' => ['D13' => $bad]], 'boards/x.json');
+                self::fail('accepted ' . json_encode($bad));
+            } catch (SpecException $e) {
+                self::assertSame("boards/x.json: pin 'D13' must be an integer >= 0 (a GPIO number)", $e->getMessage());
+            }
+        }
+        self::assertSame(['D13' => 0], Board::fromArray('x', ['name' => 'X', 'chip' => 'c', 'flash' => '4MB', 'pins' => ['D13' => 0]], 'boards/x.json')->pins);
+    }
+
+    public function test_override_values_resolve_pin_names(): void
+    {
+        $board = $this->nano()->withOverrides([
+            'i2c' => ['sda' => 'D13', 'scl' => 7],
+            'led' => ['type' => 'ws2812', 'pin' => 'LED_BUILTIN', 'order' => 'grb'],
+        ]);
+        self::assertSame(['type' => 'i2c', 'sda' => 48, 'scl' => 7], $board->peripherals['i2c']);
+        self::assertSame(['type' => 'ws2812', 'pin' => 48, 'order' => 'grb'], $board->peripherals['led']);
+        self::assertSame($this->nano()->pins, $board->pins, 'the pins are kept');
+    }
+
+    public function test_pins_cannot_be_overridden(): void
+    {
+        foreach ([['D2' => 5], []] as $value) {
+            try {
+                $this->nano()->withOverrides(['pins' => $value]);
+                self::fail('accepted ' . json_encode($value));
+            } catch (SpecException $e) {
+                self::assertSame("board-overrides: 'pins' cannot be overridden: the pin names of board 'nano' come from its board file", $e->getMessage());
+            }
+        }
+    }
+
+    public function test_constructor_without_pins_keeps_working(): void
+    {
+        $board = new Board('b', 'B', 'esp32s3', null, '4MB', null, []);
+        self::assertSame([], $board->pins);
+        self::assertSame(['A' => 1], (new Board('b', 'B', 'esp32s3', null, '4MB', null, [], pins: ['A' => 1]))->pins);
+    }
+
     public function test_sdk_requires_a_driver_autoload(): void
     {
         $this->expectException(SpecException::class);

@@ -48,6 +48,12 @@ An SDK is a directory (`sdk.json`, `chips/`, `boards/`, `runtimes/`, `storages/`
   `Sdk::board($id)` takes the id or that long form (`sdk:<id>`, `<vendor>/<package>:<id>`). An id defined by more
   than one source must be given in the long form; `Sdk::$boards` keys such boards by the long form and the others by
   their id.
+- A board file may name its GPIOs in `pins`, an object `name => GPIO` (names `/^[A-Z][A-Z0-9_]*$/`, e.g. `D13`,
+  `LED_BUILTIN`; values integers >= 0; several names may share a GPIO). `pins` is not a block: it has no `type` and is
+  not in `peripherals` nor `capabilities()`. `Board::$pins` keeps them in the file's order (empty when missing). A
+  string value of a block (other than `type`) equal to a pin name becomes its GPIO when the board is read
+  (`"i2c": {"type": "i2c", "sda": "A4"}` gives `sda` 11 with `"A4": 11`); any other string stays as it is.
+  `Board::withOverrides()` resolves the override values against the board's pins; `pins` itself cannot be overridden.
 - `Sdk\Driver` is the interface an SDK driver implements, `Driver::CONTRACT` being the contract version (1) that
   `sdk.json` must declare:
 

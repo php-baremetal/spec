@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Added: optional top-level `pins` in a board file, an object `name => GPIO` (names `/^[A-Z][A-Z0-9_]*$/`, values integers >= 0; several names may share a GPIO), read into `Board::$pins` (`array<string,int>`, in the file's order, empty when missing). A wrong type, an invalid name or a value that is not an integer >= 0 fails, naming the file and the pin. `pins` is not a block: it has no `type` and is not in `peripherals` nor `capabilities()`.
+- Added: pin names in blocks. When a board is read, a string value of a block (other than `type`) equal to one of its pin names becomes that pin's GPIO (`"sda": "A4"` gives `11` with `"A4": 11`). Other strings stay as they are. `Board::withOverrides()` resolves the override values against the board's pins the same way and keeps the pins.
+- Added: `Board`'s constructor takes `pins` as a new last parameter (default `[]`), so existing callers keep working.
+- Changed: `board-overrides` cannot give `pins` (`board-overrides: 'pins' cannot be overridden: the pin names of board '<id>' come from its board file`).
+
 ## 1.4.1
 
 - Fixed: the 1.4.0 package on Packagist was built from an earlier commit and read `boards/catalog.json` of the SDK as a board (`boards/catalog.json: 'esp32.type' must be a non-empty string`). 1.4.1 has the 1.4.0 changes as listed below, including the skip of `boards/catalog.json`.
